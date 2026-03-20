@@ -1,0 +1,78 @@
+use rand::Rng;
+use crate::state::SnippetLength;
+use super::{WordBank, fill_template};
+
+pub struct JavaScriptBank;
+
+const IDENTIFIERS: &[&str] = &[
+    "value", "result", "index", "count", "name", "data", "input",
+    "output", "error", "item", "items", "map", "key", "node", "root",
+    "left", "right", "depth", "width", "height", "size", "len",
+    "buf", "src", "dst", "path", "file", "line", "config", "state",
+    "ctx", "handle", "stream", "token", "parser", "entry", "field",
+    "payload", "cache", "args", "response", "request", "message",
+    "text", "id", "props", "ref", "callback", "event", "target",
+];
+
+const TEMPLATES: &[&str] = &[
+    "const {id} = {id};",
+    "let {id} = {id};",
+    "let {id} = [];",
+    "let {id} = {};",
+    "let {id} = null;",
+    "const {id} = {id}();",
+    "function {id}({id}, {id}) {",
+    "function {id}({id}) {",
+    "const {id} = ({id}) => {id};",
+    "const {id} = async ({id}) => {",
+    "const {id} = ({id}) => {",
+    "class {id} {",
+    "class {id} extends {id} {",
+    "if ({id} === {id}) {",
+    "if ({id} !== null) {",
+    "if (!{id}) {",
+    "for (let {id} = 0; {id} < {id}; {id}++) {",
+    "for (const {id} of {id}) {",
+    "for (const [{id}, {id}] of Object.entries({id})) {",
+    "while ({id} > 0) {",
+    "return {id};",
+    "return null;",
+    "throw new Error({id});",
+    "{id}.push({id});",
+    "{id}[{id}] = {id};",
+    "console.log({id});",
+    "console.error({id});",
+    "const {id} = await {id}({id});",
+    "import {id} from \"{id}\";",
+    "export default {id};",
+    "export const {id} = {id};",
+    "const {id} = {id}.map(({id}) => {id});",
+    "const {id} = {id}.filter(({id}) => {id});",
+    "const {id} = {id}.find(({id}) => {id});",
+    "const {id} = {id}.reduce(({id}, {id}) => {id}, {id});",
+    "const {id} = {id}?.{id} ?? {id};",
+    "const {id} = { ...{id}, {id}: {id} };",
+    "const {id} = [...{id}, {id}];",
+    "typeof {id} === \"string\"",
+    "Array.isArray({id})",
+];
+
+impl WordBank for JavaScriptBank {
+    fn build_snippet(&self, rng: &mut impl Rng, length: SnippetLength) -> String {
+        let target = length.word_count();
+        let mut words: Vec<String> = Vec::new();
+        let mut i = 0;
+
+        while words.len() < target {
+            let template = &TEMPLATES[i % TEMPLATES.len()];
+            let filled = fill_template(template, IDENTIFIERS, rng);
+            for word in filled.split_whitespace() {
+                words.push(word.to_string());
+            }
+            i += 1;
+        }
+
+        words.truncate(target);
+        words.join(" ")
+    }
+}

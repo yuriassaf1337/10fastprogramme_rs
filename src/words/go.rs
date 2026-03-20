@@ -1,0 +1,78 @@
+use rand::Rng;
+use crate::state::SnippetLength;
+use super::{WordBank, fill_template};
+
+pub struct GoBank;
+
+const IDENTIFIERS: &[&str] = &[
+    "value", "result", "index", "count", "name", "data", "input",
+    "output", "err", "item", "items", "m", "key", "node", "root",
+    "left", "right", "depth", "width", "height", "size", "n",
+    "buf", "src", "dst", "path", "file", "line", "config", "ctx",
+    "w", "r", "req", "resp", "msg", "s", "b", "c", "p", "f",
+    "ch", "done", "mu", "wg", "fn", "handler", "logger", "db",
+];
+
+const TEMPLATES: &[&str] = &[
+    "{id} := {id}",
+    "var {id} {id}",
+    "var {id} = {id}{}",
+    "{id} := make([]int, {id})",
+    "{id} := make(map[string]{id})",
+    "{id} := make(chan {id})",
+    "func {id}({id} {id}) {id} {",
+    "func {id}({id} {id}) ({id}, error) {",
+    "func ({id} *{id}) {id}() {id} {",
+    "func ({id} *{id}) {id}({id} {id}) error {",
+    "type {id} struct {",
+    "type {id} interface {",
+    "if {id} != nil {",
+    "if {id} == nil {",
+    "if {id}, {id} := {id}(); {id} != nil {",
+    "if err != nil {",
+    "for {id}, {id} := range {id} {",
+    "for {id} := 0; {id} < {id}; {id}++ {",
+    "for {",
+    "switch {id} {",
+    "case {id}:",
+    "return {id}, nil",
+    "return nil, {id}",
+    "return {id}",
+    "defer {id}.Close()",
+    "defer {id}()",
+    "go {id}()",
+    "{id} <- {id}",
+    "{id} = <-{id}",
+    "fmt.Println({id})",
+    "fmt.Errorf(\"%w\", {id})",
+    "log.Printf(\"%v\", {id})",
+    "{id} = append({id}, {id})",
+    "{id}[{id}] = {id}",
+    "import \"fmt\"",
+    "import \"errors\"",
+    "package main",
+    "select {",
+    "close({id})",
+    "len({id})",
+    "cap({id})",
+];
+
+impl WordBank for GoBank {
+    fn build_snippet(&self, rng: &mut impl Rng, length: SnippetLength) -> String {
+        let target = length.word_count();
+        let mut words: Vec<String> = Vec::new();
+        let mut i = 0;
+
+        while words.len() < target {
+            let template = &TEMPLATES[i % TEMPLATES.len()];
+            let filled = fill_template(template, IDENTIFIERS, rng);
+            for word in filled.split_whitespace() {
+                words.push(word.to_string());
+            }
+            i += 1;
+        }
+
+        words.truncate(target);
+        words.join(" ")
+    }
+}
