@@ -1,14 +1,29 @@
 # 10fastprogramme.rs
 
-a typing speed trainer based on monkeytype 
-you pick a language and type generated code snippets that follow its syntax
+a typing speed trainer based on monkeytype built with Rust and EGui;
 
-built with Rust and egui.
+pick a language and type generated code snippets that follow its syntax
 
 ## avaiable languages
 
 ```
 rust, python, javascript, go, C
+```
+
+you can also make your own language and put it inside the program's folder, following the json syntax.
+
+example:
+```json
+{
+  "identifiers": [
+    "value", "result", "index"
+  ],
+  "templates": [
+    "int {id} = 0;",
+    "int {id} = {id};",
+    "char *{id} = NULL;",
+  ]
+}
 ```
 
 ## build
