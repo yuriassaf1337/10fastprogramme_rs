@@ -1,5 +1,5 @@
+use crate::state::{CharResult, ResultsData, TypingState};
 use std::time::Instant;
-use crate::state::{CharResult, TypingState, ResultsData};
 
 impl TypingState {
     pub fn handle_char(&mut self, ch: char) {
@@ -7,7 +7,6 @@ impl TypingState {
             return;
         }
 
-        // start timer on first keystroke
         if self.started_at.is_none() {
             self.started_at = Some(Instant::now());
         }
@@ -25,6 +24,15 @@ impl TypingState {
         if self.is_complete() {
             self.finished_at = Some(Instant::now());
         }
+
+        // snapshot wpm and accuracy at each completed second
+        if let Some(start) = self.started_at {
+            let completed_secs = start.elapsed().as_secs_f32().floor() as usize;
+            while self.wpm_history.len() < completed_secs {
+                self.wpm_history.push(self.wpm());
+                self.accuracy_history.push(self.accuracy());
+            }
+        }
     }
 
     pub fn handle_backspace(&mut self) {
@@ -35,16 +43,14 @@ impl TypingState {
         self.input.pop();
     }
 
-    /// returns elapsed seconds since typing began
     pub fn elapsed_secs(&self) -> f32 {
         match (self.started_at, self.finished_at) {
             (Some(start), Some(end)) => end.duration_since(start).as_secs_f32(),
-            (Some(start), None)      => start.elapsed().as_secs_f32(),
-            _                        => 0.0,
+            (Some(start), None) => start.elapsed().as_secs_f32(),
+            _ => 0.0,
         }
     }
 
-    /// gross WPM: (chars_typed / 5) / elapsed_minutes
     pub fn wpm(&self) -> f32 {
         let elapsed_mins = self.elapsed_secs() / 60.0;
         if elapsed_mins < 0.0001 {
@@ -57,34 +63,35 @@ impl TypingState {
         if self.input.is_empty() {
             return 100.0;
         }
-        let correct = self.input.iter().filter(|&&r| r == CharResult::Correct).count();
+        let correct = self
+            .input
+            .iter()
+            .filter(|&&r| r == CharResult::Correct)
+            .count();
         (correct as f32 / self.input.len() as f32) * 100.0
     }
 
     pub fn error_count(&self) -> usize {
-        self.input.iter().filter(|&&r| r == CharResult::Incorrect).count()
+        self.input
+            .iter()
+            .filter(|&&r| r == CharResult::Incorrect)
+            .count()
     }
 
-    pub fn into_results(self) -> ResultsData {
-        ResultsData {
-            wpm:          self.wpm(),
-            accuracy:     self.accuracy(),
-            time_elapsed: self.elapsed_secs(),
-            language:     self.language,
-            errors:       self.error_count(),
-            chars_typed:  self.input.len(),
-        }
-    }
-
-    /// sme as into_results but borrows self
     pub fn into_results_cloned(&self) -> ResultsData {
+        let mut wpm_history = self.wpm_history.clone();
+        let mut accuracy_history = self.accuracy_history.clone();
+        wpm_history.push(self.wpm());
+        accuracy_history.push(self.accuracy());
         ResultsData {
-            wpm:          self.wpm(),
-            accuracy:     self.accuracy(),
+            wpm: self.wpm(),
+            accuracy: self.accuracy(),
             time_elapsed: self.elapsed_secs(),
-            language:     self.language,
-            errors:       self.error_count(),
-            chars_typed:  self.input.len(),
+            language: self.language.clone(),
+            snippet_length: self.snippet_length,
+            errors: self.error_count(),
+            wpm_history,
+            accuracy_history,
         }
     }
 }

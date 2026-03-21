@@ -2,8 +2,8 @@ mod app;
 mod state;
 mod theme;
 mod typing;
-mod words;
 mod ui;
+mod words;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
