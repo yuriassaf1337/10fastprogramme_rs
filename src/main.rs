@@ -1,4 +1,5 @@
 mod app;
+mod records;
 mod state;
 mod theme;
 mod typing;

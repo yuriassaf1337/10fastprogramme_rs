@@ -1,4 +1,6 @@
-use crate::state::{AppState, MenuState};
+use crate::records::Records;
+use crate::records::model::RunRecord;
+use crate::state::{AppState, MenuState, TypingState};
 use crate::theme;
 use crate::ui;
 use egui::{
@@ -7,6 +9,7 @@ use egui::{
 
 pub struct App {
     state: AppState,
+    records: Records,
     accent: Color32,
     settings_open: bool,
 }
@@ -24,6 +27,7 @@ impl App {
 
         Self {
             state: AppState::Menu(MenuState::default()),
+            records: Records::load(),
             accent,
             settings_open: false,
         }
@@ -44,12 +48,27 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let transition = match &mut self.state {
-                AppState::Menu(s) => ui::menu::show(ui, s, self.accent),
+                AppState::Menu(s) => ui::menu::show(ui, s, &self.records, self.accent),
                 AppState::Typing(s) => ui::typing_view::show(ui, s, self.accent),
                 AppState::Results(s) => ui::results::show(ui, s, self.accent),
             };
 
             if let Some(new_state) = transition {
+                if let AppState::Typing(ref old_typing_state) = self.state {
+                    let completed = old_typing_state.is_complete();
+                    if completed || old_typing_state.cursor > 0 {
+                        let record = RunRecord::new(
+                            old_typing_state.language.name(),
+                            old_typing_state.snippet_length.label(),
+                            old_typing_state.wpm(),
+                            old_typing_state.accuracy(),
+                            old_typing_state.elapsed_secs(),
+                            old_typing_state.error_count(),
+                            completed,
+                        );
+                        self.records.add(record);
+                    }
+                }
                 self.state = new_state;
             }
         });

@@ -27,7 +27,7 @@ impl Language {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SnippetLength {
     Short,  // ~25 words
     Medium, // ~50 words
