@@ -29,12 +29,12 @@ fn resolve_base_dir() -> PathBuf {
 }
 
 fn seed_default_languages(dir: &Path) {
-    let defaults: &[(&str, &str)] = &[
-        ("rust",       include_str!("rust.json")),
-        ("python",     include_str!("python.json")),
-        ("javascript", include_str!("javascript.json")),
-        ("go",         include_str!("go.json")),
-        ("c",          include_str!("c.json")),
+    let defaults = [
+        ("rust", include_str!("Rust.json")),
+        ("python", include_str!("Python.json")),
+        ("javascript", include_str!("JavaScript.json")),
+        ("go", include_str!("Go.json")),
+        ("c", include_str!("C.json")),
     ];
 
     for (name, content) in defaults {
