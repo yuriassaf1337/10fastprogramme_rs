@@ -4,6 +4,12 @@ a typing speed trainer based on monkeytype built with Rust and EGui;
 
 pick a language and type generated code snippets that follow its syntax
 
+## app preview:
+
+<p align="center">
+  <img src="preview.png" width="550" alt="app">
+</p>
+
 ## avaiable languages
 
 ```
