@@ -1,4 +1,4 @@
-use crate::state::{AppState, CharResult, MenuState, TypingState};
+use crate::state::{AppState, CharResult, CursorStyle, MenuState, TypingState};
 use crate::theme::*;
 use crate::words::generate_snippet;
 use egui::{
@@ -7,7 +7,7 @@ use egui::{
 
 const TYPING_AREA_ID: &str = "typing_focus";
 
-pub fn show(ui: &mut Ui, state: &mut TypingState, accent: Color32) -> Option<AppState> {
+pub fn show(ui: &mut Ui, state: &mut TypingState, accent: Color32, cursor_style: CursorStyle) -> Option<AppState> {
     let focus_id = egui::Id::new(TYPING_AREA_ID);
     ui.memory_mut(|m| m.request_focus(focus_id));
 
@@ -55,6 +55,10 @@ pub fn show(ui: &mut Ui, state: &mut TypingState, accent: Color32) -> Option<App
 
     if state.is_complete() && transition.is_none() {
         transition = Some(AppState::Results(state.into_results_cloned()));
+    }
+
+    if state.started_at.is_some() && state.finished_at.is_none() {
+        ui.ctx().request_repaint();
     }
 
     let avail = ui.available_size();
@@ -125,10 +129,6 @@ pub fn show(ui: &mut Ui, state: &mut TypingState, accent: Color32) -> Option<App
                         ..Default::default()
                     };
 
-                    if i == state.cursor {
-                        fmt.underline = egui::Stroke::new(2.0, accent);
-                    }
-
                     if i < state.cursor {
                         if let CharResult::Incorrect = state.input[i] {
                             fmt.background = Color32::from_rgba_unmultiplied(202, 71, 84, 40);
@@ -146,7 +146,77 @@ pub fn show(ui: &mut Ui, state: &mut TypingState, accent: Color32) -> Option<App
                             .allocate_response(Vec2::ZERO, egui::Sense::focusable_noninteractive());
                         let galley = ui.fonts(|f| f.layout_job(job));
                         let (rect, _) = ui.allocate_exact_size(galley.size(), egui::Sense::hover());
-                        ui.painter().galley(rect.min, galley, COLOR_UNTYPED);
+                        ui.painter().galley(rect.min, galley.clone(), COLOR_UNTYPED);
+
+                        // get cursor target rect
+                        let pcursor = egui::epaint::text::cursor::PCursor { paragraph: 0, offset: state.cursor, prefer_next_row: false };
+                        let cursor_rect_local = galley.pos_from_pcursor(pcursor);
+                        let target_cursor_rect = cursor_rect_local.translate(rect.min.to_vec2());
+
+                        let target_pos = target_cursor_rect.min;
+                        let target_width = if target_cursor_rect.width() > 0.1 { target_cursor_rect.width() } else { 10.0 };
+
+                        if Some(target_pos) != state.last_cursor_target {
+                            state.cursor_anim_start_pos = state.cursor_anim_pos.or(Some(target_pos));
+                            state.cursor_anim_start_width = state.cursor_anim_width.or(Some(target_width));
+                            state.cursor_anim_start_time = Some(std::time::Instant::now());
+                            state.last_cursor_target = Some(target_pos);
+                        }
+
+                        // NOTE: manually tune animation speed, change `anim_duration` below
+                        // Lower value = faster animation. E.g., 0.05 is 50ms.
+                        let anim_duration = 0.10;
+                        let mut current_pos = target_pos;
+                        let mut current_width = target_width;
+
+                        if let (Some(start_pos), Some(start_width), Some(start_time)) = (
+                            state.cursor_anim_start_pos,
+                            state.cursor_anim_start_width,
+                            state.cursor_anim_start_time
+                        ) {
+                            let elapsed = start_time.elapsed().as_secs_f32();
+                            let t = (elapsed / anim_duration).clamp(0.0, 1.0);
+                            
+                            // easeOutExpo function
+                            let eased_t = if t >= 1.0 { 1.0 } else { 1.0 - (-10.0 * t).exp2() };
+
+                            current_pos = start_pos.lerp(target_pos, eased_t);
+                            current_width = start_width + (target_width - start_width) * eased_t;
+
+                            if t < 1.0 {
+                                ui.ctx().request_repaint();
+                            }
+                        }
+
+                        state.cursor_anim_pos = Some(current_pos);
+                        state.cursor_anim_width = Some(current_width);
+
+                        let current_cursor_rect = egui::Rect::from_min_size(
+                            current_pos,
+                            egui::vec2(current_width, target_cursor_rect.height()),
+                        );
+
+                        match cursor_style {
+                            CursorStyle::Bar => {
+                                ui.painter().line_segment(
+                                    [current_cursor_rect.left_top(), current_cursor_rect.left_bottom()],
+                                    egui::Stroke::new(2.0, accent),
+                                );
+                            }
+                            CursorStyle::Underline => {
+                                ui.painter().line_segment(
+                                    [current_cursor_rect.left_bottom(), current_cursor_rect.right_bottom()],
+                                    egui::Stroke::new(2.0, accent),
+                                );
+                            }
+                            CursorStyle::Block => {
+                                ui.painter().rect_filled(
+                                    current_cursor_rect,
+                                    0.0,
+                                    accent.gamma_multiply(0.4),
+                                );
+                            }
+                        }
                     },
                 );
 

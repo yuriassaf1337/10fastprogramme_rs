@@ -58,11 +58,43 @@ pub enum CharResult {
     Incorrect,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CursorStyle {
+    Bar,
+    Underline,
+    Block,
+}
+
+impl Default for CursorStyle {
+    fn default() -> Self {
+        CursorStyle::Underline
+    }
+}
+
+impl CursorStyle {
+    pub fn label(&self) -> &'static str {
+        match self {
+            CursorStyle::Bar => "bar",
+            CursorStyle::Underline => "underline",
+            CursorStyle::Block => "block",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "bar" => CursorStyle::Bar,
+            "block" => CursorStyle::Block,
+            _ => CursorStyle::Underline,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct MenuState {
     pub selected_language: Language,
     pub snippet_length: SnippetLength,
     pub languages: Vec<Language>,
+    pub sidebar_open: bool,
 }
 
 impl Default for MenuState {
@@ -83,6 +115,7 @@ impl Default for MenuState {
             selected_language,
             snippet_length: SnippetLength::Medium,
             languages,
+            sidebar_open: false,
         }
     }
 }
@@ -98,6 +131,12 @@ pub struct TypingState {
     pub finished_at: Option<Instant>,
     pub wpm_history: Vec<f32>,
     pub accuracy_history: Vec<f32>,
+    pub cursor_anim_pos: Option<egui::Pos2>,
+    pub cursor_anim_width: Option<f32>,
+    pub last_cursor_target: Option<egui::Pos2>,
+    pub cursor_anim_start_pos: Option<egui::Pos2>,
+    pub cursor_anim_start_width: Option<f32>,
+    pub cursor_anim_start_time: Option<Instant>,
 }
 
 impl TypingState {
@@ -112,6 +151,12 @@ impl TypingState {
             finished_at: None,
             wpm_history: Vec::new(),
             accuracy_history: Vec::new(),
+            cursor_anim_pos: None,
+            cursor_anim_width: None,
+            last_cursor_target: None,
+            cursor_anim_start_pos: None,
+            cursor_anim_start_width: None,
+            cursor_anim_start_time: None,
         }
     }
 

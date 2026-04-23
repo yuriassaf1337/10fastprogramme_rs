@@ -11,29 +11,82 @@ pub fn show(
     records: &Records,
     accent: Color32,
 ) -> Option<AppState> {
-    let mut transition = None;
     let avail = ui.available_size();
-
-    // two-column layout if enough width
-    let show_sidebar = avail.x > 900.0;
     
-    if show_sidebar {
-        ui.horizontal(|ui| {
-            let sidebar_width = avail.x * 0.30;
-            ui.allocate_ui(Vec2::new(sidebar_width, avail.y), |ui| {
-                ui.add_space(avail.y * 0.15);
-                show_sidebar_content(ui, records, accent);
-            });
-            
-            ui.allocate_ui(Vec2::new(avail.x - sidebar_width, avail.y), |ui| {
-                transition = show_main_content(ui, state, accent, avail);
-            });
+    // main content always takes full available width
+    let transition = show_main_content(ui, state, accent, avail);
+    
+    egui::Area::new(egui::Id::new("hamburger_area"))
+        .fixed_pos(egui::Pos2::new(10.0, 10.0))
+        .order(egui::Order::Foreground)
+        .show(ui.ctx(), |ui| {
+            let (rect, resp) = ui.allocate_exact_size(Vec2::splat(28.0), egui::Sense::click());
+            let color = if resp.hovered() || state.sidebar_open {
+                accent
+            } else {
+                COLOR_MUTED
+            };
+            draw_hamburger(ui.painter(), rect.center(), color);
+            if resp.clicked() {
+                state.sidebar_open = !state.sidebar_open;
+            }
         });
-    } else {
-        transition = show_main_content(ui, state, accent, avail);
+
+    if state.sidebar_open {
+        let sidebar_width = (avail.x * 0.30).min(300.0).max(200.0);
+        let popup_pos = egui::Pos2::new(10.0, 48.0);
+
+        let window_res = egui::Window::new("__sidebar__")
+            .title_bar(false)
+            .resizable(false)
+            .fixed_pos(popup_pos)
+            .frame(Frame {
+                fill: COLOR_SURFACE,
+                rounding: Rounding::same(8.0),
+                stroke: Stroke::new(1.0, COLOR_MUTED),
+                inner_margin: Margin::same(14.0),
+                ..Default::default()
+            })
+            .show(ui.ctx(), |ui| {
+                ui.set_width(sidebar_width);
+                ui.set_max_height(avail.y - 60.0);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    show_sidebar_content(ui, records, accent);
+                });
+            });
+
+        let clicked_outside = ui.input(|i| {
+            if i.pointer.any_pressed() {
+                if let Some(pos) = i.pointer.interact_pos() {
+                    if let Some(res) = &window_res {
+                        let hamburger_rect = egui::Rect::from_min_size(egui::Pos2::new(10.0, 10.0), Vec2::splat(28.0));
+                        return !res.response.rect.contains(pos) && !hamburger_rect.contains(pos);
+                    }
+                }
+            }
+            false
+        });
+
+        if clicked_outside {
+            state.sidebar_open = false;
+        }
     }
 
     transition
+}
+
+fn draw_hamburger(painter: &egui::Painter, center: egui::Pos2, color: Color32) {
+    let w = 18.0;
+    let h = 2.0;
+    let spacing = 6.0;
+    
+    for i in -1..=1 {
+        let y = center.y + (i as f32) * spacing;
+        painter.line_segment(
+            [egui::pos2(center.x - w / 2.0, y), egui::pos2(center.x + w / 2.0, y)],
+            Stroke::new(h, color),
+        );
+    }
 }
 
 fn show_sidebar_content(ui: &mut Ui, records: &Records, accent: Color32) {

@@ -1,6 +1,6 @@
 use crate::records::Records;
 use crate::records::model::RunRecord;
-use crate::state::{AppState, MenuState, TypingState};
+use crate::state::{AppState, CursorStyle, MenuState};
 use crate::theme;
 use crate::ui;
 use egui::{
@@ -11,6 +11,7 @@ pub struct App {
     state: AppState,
     records: Records,
     accent: Color32,
+    cursor_style: CursorStyle,
     settings_open: bool,
 }
 
@@ -25,10 +26,17 @@ impl App {
             .and_then(|h| parse_hex(&h))
             .unwrap_or(theme::COLOR_ACCENT);
 
+        let cursor_style = cc
+            .storage
+            .and_then(|s| s.get_string("cursor_style"))
+            .map(|s| CursorStyle::from_str(&s))
+            .unwrap_or_default();
+
         Self {
             state: AppState::Menu(MenuState::default()),
             records: Records::load(),
             accent,
+            cursor_style,
             settings_open: false,
         }
     }
@@ -43,13 +51,14 @@ impl eframe::App for App {
             self.accent.b()
         );
         storage.set_string("accent", hex);
+        storage.set_string("cursor_style", self.cursor_style.label().to_string());
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let transition = match &mut self.state {
                 AppState::Menu(s) => ui::menu::show(ui, s, &self.records, self.accent),
-                AppState::Typing(s) => ui::typing_view::show(ui, s, self.accent),
+                AppState::Typing(s) => ui::typing_view::show(ui, s, self.accent, self.cursor_style),
                 AppState::Results(s) => ui::results::show(ui, s, self.accent),
             };
 
@@ -141,6 +150,29 @@ impl eframe::App for App {
                         &mut self.accent,
                         egui::color_picker::Alpha::Opaque,
                     );
+                    
+                    ui.add_space(16.0);
+                    ui.label(
+                        RichText::new("cursor style")
+                            .font(FontId::monospace(12.0))
+                            .color(theme::COLOR_SUBTEXT),
+                    );
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        for style in [CursorStyle::Bar, CursorStyle::Underline, CursorStyle::Block] {
+                            let selected = self.cursor_style == style;
+                            let text = RichText::new(style.label())
+                                .font(FontId::monospace(11.0))
+                                .color(if selected { self.accent } else { theme::COLOR_SUBTEXT });
+                            if ui.add(
+                                egui::Button::new(text)
+                                    .fill(if selected { self.accent.gamma_multiply(0.15) } else { Color32::TRANSPARENT })
+                                    .stroke(Stroke::new(1.0, if selected { self.accent } else { theme::COLOR_MUTED }))
+                            ).clicked() {
+                                self.cursor_style = style;
+                            }
+                        }
+                    });
                 });
         }
     }
